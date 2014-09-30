@@ -89,6 +89,8 @@
 
 ** Lisp libraries adjustments
 *** OSICAT /JWBM/
+
+
     In osicat/posix/windows.lisp I added the following constant
     definitions as suggested by JWBM
     #+BEGIN_SRC lisp
@@ -109,7 +111,24 @@
     I found references to these in Cygwin's
     [[file:../../../../../../cygwin64/usr/include/sys/stat.h][/usr/include/sys/stat.h]].  Can I teach the groveller to parse
     that file instead of modifying osicat?
+
     
+**** Note on osicat use in GSLL
+
+     How relevant is Osicat for GSLL?
+     
+     GSLL uses Osicat in only one location: to obtain the location of
+     the temporary directory.  This is used by
+     =histogram/ntuple.lisp=.
+
+     Osicat itself uses the value of the =TMPDIR= environment variable
+     or goes for the unix system default =/tmp=.
+
+     Since GSLL depends on ASDF, that comes with UIOP, that comes with
+     =getenv= and =getenvp=, one could relatively easily implement
+     this functionality in uiop or gsll, removing the need for osicat
+     in gsll.
+     
 *** cffi/grovel grovel.lisp 
     - Modify ~cffi-grovel::*CC*~ to point to our compiler.  Use the
       full Windows path.  In my case it is
@@ -201,27 +220,68 @@
     :ID:       czkiifh02mg0
     :END:
 
-    With the above, GSLL compiles.  I then proceded to run the tests.
-    
-    Initially, the tests caused CLL to crash.  I suspected the cause
-    to be related to the GSL tests that failed - but see next.
-
-    I tried to isolate the tests that caused the crash.  After a
-    couple of attempts at tracing (and several CCL crashes), I
-    finally turned on tracing of =lisp-unit='s =run-thunk= which
-    runs individual tests.  With that trace on, all the tests
-    completed -- CCL did not crash.
-
-    Following that, the tests would all run with all traces removed.
-    I get 77 failures and 6 execution errors.
-
-    I then cleared the common-lisp cache, restarted CCL, recompiled
-    everything, and ran the tests.
+    After compiling GSLL, the tests will cause CCL to crash.  One way
+    of preventing that is to somehow exercise GSLL within CCL by
+    executing within the gsll package
     #+BEGIN_SRC lisp
-      (ql:quickload :lisp-unit)
-      (ql:quickload :gsll)
-      (in-package :gsll)
-      (lisp-unit:run-tests)
+      (TEST-QRPT-SOLVE-DIM *HILB2*)
     #+END_SRC
-    Now the unit tests ran without CCL crashing.
-    
+    Following that the GSLL tests will run.  I get 77 failures and 6
+    execution errors.
+
+    Historical notes on making CCL run GSLL tests follow
+
+**** Initial GSLL compilation
+
+     These are the notes from my first GSLL compilation on or about
+     [2014-09-18 Thu].
+
+     With the above, GSLL compiles.  I then proceded to run the tests.
+     
+     Initially, the tests caused CLL to crash.  I suspected the cause
+     to be related to the GSL tests that failed - but see next.
+
+     I tried to isolate the tests that caused the crash.  After a
+     couple of attempts at tracing (and several CCL crashes), I
+     finally turned on tracing of =lisp-unit='s =run-thunk= which
+     runs individual tests.  With that trace on, all the tests
+     completed -- CCL did not crash.
+
+
+     I then cleared the common-lisp cache, restarted CCL, recompiled
+     everything, and ran the tests.
+     #+BEGIN_SRC lisp
+       (ql:quickload :lisp-unit)
+       (ql:quickload :gsll)
+       (in-package :gsll)
+       (lisp-unit:run-tests)
+     #+END_SRC
+     Now the unit tests ran without CCL crashing.
+     
+**** Follow up GSLL compilation
+     After a break of about 12 days (this is written on
+     [2014-09-30 Tue]), I tried running Osicat and GSLL.  The purpose
+     was to see how to fix or modify Osicat to make Joe's constants
+     fit more naturally.  Two issues showed up:
+
+***** Osical failure to load =libosicat.dll=
+      Osicat could not load =libosicat.dll= even though it was present
+      in the cache area.  This is a new error that did not show up
+      during the initial compilation efforts.  I do not recall any
+      issues with compiling osicat.  This could be due to some change
+      in my system setup.
+
+      I did not spend time on fixing that, and just chose the option to
+      skip the offending file.
+      
+***** GSLL test causing CCL to crash
+
+      I was not surprised by the crash.  I thought that just turning
+      the trace on for =lisp-unit:run-thunk= would do its magic like
+      the first time, but it did not.
+
+      I then looked at the thunks that were being run, and took the
+      first one on the list, =(TEST-QRPT-SOLVE-DIM *HILB2*)=, and ran
+      it without problems.  Following that, all the tests would run.
+
+      
